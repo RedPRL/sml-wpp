@@ -1,7 +1,13 @@
 Library
+  signature ANSI_COLORS
   signature PRETTY_PRINT
+  functor PrettyPrint
+  structure AnsiColors
+  structure DisableAnsiColors
   structure PrettyPrint
 is
   $/basis.cm
+  src/ansi_colors.sig
   src/pretty_print.sig
+  src/ansi_colors.sml
   src/pretty_print.sml

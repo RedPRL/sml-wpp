@@ -12,6 +12,8 @@ signature PRETTY_PRINT =
 sig
   type doc
 
+  structure C : ANSI_COLORS
+
   val empty : doc
   val break : int -> int -> doc
   val line : doc
@@ -21,6 +23,12 @@ sig
   val nest : int -> doc -> doc
   val text : string -> doc
   val ^^ : doc * doc -> doc
+
+  (* formatting *)
+  val color : C.color -> doc -> doc
+  val bold : bool -> doc -> doc
+  val underline : bool -> doc -> doc
+  val blink : bool -> doc -> doc
 
   (* derived functions *)
   val concat : doc list -> doc

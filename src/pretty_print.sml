@@ -8,9 +8,18 @@
    your choice, the licence can be obtained at
    http://www.gnu.org/copyleft/lgpl.html
 *)
-structure PrettyPrint :> PRETTY_PRINT =
+
+functor PrettyPrint (C : ANSI_COLORS) :> PRETTY_PRINT =
 struct
   infixr 6 ^^
+
+  structure C = C
+
+  type fmt =
+    {color : C.color,
+     bold : bool,
+     ul : bool,
+     bl : bool}
 
   datatype doc =
      NIL
@@ -20,6 +29,7 @@ struct
    | BREAK of int * int
    | NEWLINE
    | GROUP of doc
+   | FORMAT of (fmt -> fmt) * doc
 
   val op^^ =
     fn (NIL, NIL) => NIL
@@ -30,10 +40,15 @@ struct
   val empty = NIL
   fun nest i x = NEST(i, x)
   val text = TEXT
-  fun break sp off = BREAK(sp, off)
-  val line = BREAK (1,0)
+  fun break sp off = BREAK (sp, off)
+  val line = BREAK (1, 0)
   val newline = NEWLINE
   fun group x = GROUP x
+
+  fun color cl x = FORMAT (fn {color, bold, ul, bl} => {color = cl, bold = bold, ul = ul, bl = bl}, x)
+  fun bold b x = FORMAT (fn {color, bold, ul, bl} => {color = color, bold = b, ul = ul, bl = bl}, x)
+  fun underline b x = FORMAT (fn {color, bold, ul, bl} => {color = color, bold = bold, ul = b, bl = bl}, x)
+  fun blink b x = FORMAT (fn {color, bold, ul, bl} => {color = color, bold = bold, ul = ul, bl = b}, x)
 
   (*** Derived functions ***)
   val concat = List.foldr op^^ empty
@@ -66,23 +81,30 @@ struct
   fun nlspace outs s i =
     outs s (StringCvt.padRight #" " (i+nlsize) "\n")
 
+  fun renderFmt {color, bold, ul, bl} =
+    C.color color
+      ^ C.bold bold
+      ^ C.underline ul
+      ^ C.blink bl
+
   local
     datatype mode = Flat | Break
 
     fun fitting [] left = true
-      | fitting ((i, mode, doc) :: rest) left =
+      | fitting ((i, mode, fmt, doc) :: rest) left =
         if left >= 0 then
           case doc of
              NIL => fitting rest left
-           | APPEND (x, y) => fitting ((i, mode, x) :: (i, mode, y) :: rest) left
-           | NEST (j, x) => fitting ((i + j, mode, x) :: rest) left
+           | APPEND (x, y) => fitting ((i, mode, fmt, x) :: (i, mode, fmt, y) :: rest) left
+           | NEST (j, x) => fitting ((i + j, mode, fmt, x) :: rest) left
            | TEXT s => fitting rest (left - String.size s)
            | BREAK (sp, _) =>
              (case mode of
                  Flat  => fitting rest (left - sp)
                | Break => true)
            | NEWLINE => true
-           | GROUP x => fitting ((i, mode, x) :: rest) left
+           | GROUP x => fitting ((i, mode, fmt, x) :: rest) left
+           | FORMAT (f, doc') => fitting ((i, mode, f fmt, doc') :: rest) left
         else
           false
   in
@@ -93,31 +115,33 @@ struct
      k    : number of chars already used on current line
      i    : indent after linebreaks
   *)
-    fun best w outs s x =
+    fun best (w : int) (outs : 'a -> string -> 'a) (s : 'a) (x : doc) : 'a =
       let
-        fun be s k [] = s
-          | be s k ((i, mode, doc) :: rest) =
+        fun be s k [] = outs s C.reset
+          | be s k ((i, mode, fmt, doc) :: rest) =
             (case doc of
                 NIL => be s k rest
-              | APPEND (x, y) => be s k ((i, mode, x) :: (i, mode, y) :: rest)
-              | NEST (j, x) => be s k ((i + j, mode, x) :: rest)
-              | TEXT str => let val s = outs s str in be s (k + String.size str) rest end
+              | APPEND (x, y) => be s k ((i, mode, fmt, x) :: (i, mode, fmt, y) :: rest)
+              | NEST (j, x) => be s k ((i + j, mode, fmt, x) :: rest)
+              | TEXT str => let val s = outs s (renderFmt fmt ^ str) in be s (k + String.size str) rest end
               | NEWLINE => let val s = nlspace outs s i in be s i rest end
               | BREAK (sp, off) =>
                 (case mode of
-                     Flat => let val s = spaces outs s sp in be s (k + sp) rest end
-                   | Break => let val s = nlspace outs s (i + off) in be s (i + off) rest end)
+                    Flat => let val s = spaces outs s sp in be s (k + sp) rest end
+                  | Break => let val s = nlspace outs s (i + off) in be s (i + off) rest end)
               | GROUP x =>
                 (case mode of
-                     Flat => be s k ((i, Flat, x) :: rest)
-                   | Break =>
-                       let
-                         val mode' = if fitting ((i, Flat, x) :: rest) (w - k) then Flat else Break
-                       in
-                         be s k ((i, mode', x) :: rest)
-                       end))
+                    Flat => be s k ((i, Flat, fmt, x) :: rest)
+                  | Break =>
+                      let
+                        val mode' = if fitting ((i, Flat, fmt, x) :: rest) (w - k) then Flat else Break
+                      in
+                        be s k ((i, mode', fmt, x) :: rest)
+                      end)
+              | FORMAT (f, x) =>
+                  be s k ((i, mode, f fmt, x) :: rest))
       in
-        be s 0 [(0, Break, x)]
+        be s 0 [(0, Break, {color = C.black, bold = false, ul = false, bl = false}, x)]
       end
   end
 
@@ -148,3 +172,5 @@ struct
 
   val toConsumer = best
 end
+
+structure PrettyPrint = PrettyPrint (AnsiColors)
