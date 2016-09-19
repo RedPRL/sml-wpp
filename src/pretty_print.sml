@@ -121,7 +121,7 @@ struct
   *)
     fun best (w : int) ansi (outs : 'a -> string -> 'a) (s : 'a) (x : doc) : 'a =
       let
-        fun be s k [] = outs s C.reset
+        fun be s k [] = if ansi then outs s C.reset else s
           | be s k ((i, mode, fmt, doc) :: rest) =
             (case doc of
                 NIL => be s k rest
