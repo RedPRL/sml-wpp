@@ -76,10 +76,9 @@ struct
     | cursorVisible false = CSI ^ "?25h"
 end
 
-structure DisableAnsiColors :> ANSI_COLORS =
+structure DisableAnsiColors : ANSI_COLORS =
 struct
-  type color = unit
-  val (black, red, green, yellow, blue, magenta, cyan, white) = ((), (), (), (), (), (), (), ())
+  open AnsiColors
   val reset = ""
   fun underline _ = ""
   fun blink _ = ""
