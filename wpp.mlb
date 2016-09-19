@@ -1,0 +1,8 @@
+local
+  $(SML_LIB)/basis/basis.mlb
+  src/pretty_print.sig
+  src/pretty_print.sml
+in
+  signature PRETTY_PRINT
+  structure PrettyPrint
+end
