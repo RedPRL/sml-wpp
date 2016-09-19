@@ -81,11 +81,15 @@ struct
   fun nlspace outs s i =
     outs s (StringCvt.padRight #" " (i+nlsize) "\n")
 
-  fun renderFmt {color, bold, ul, bl} =
-    C.color color
-      ^ C.bold bold
-      ^ C.underline ul
-      ^ C.blink bl
+
+  fun renderFmt ansi {color, bold, ul, bl} =
+    if ansi then
+      C.color color
+        ^ C.bold bold
+        ^ C.underline ul
+        ^ C.blink bl
+    else
+      ""
 
   local
     datatype mode = Flat | Break
@@ -115,7 +119,7 @@ struct
      k    : number of chars already used on current line
      i    : indent after linebreaks
   *)
-    fun best (w : int) (outs : 'a -> string -> 'a) (s : 'a) (x : doc) : 'a =
+    fun best (w : int) ansi (outs : 'a -> string -> 'a) (s : 'a) (x : doc) : 'a =
       let
         fun be s k [] = outs s C.reset
           | be s k ((i, mode, fmt, doc) :: rest) =
@@ -123,7 +127,7 @@ struct
                 NIL => be s k rest
               | APPEND (x, y) => be s k ((i, mode, fmt, x) :: (i, mode, fmt, y) :: rest)
               | NEST (j, x) => be s k ((i + j, mode, fmt, x) :: rest)
-              | TEXT str => let val s = outs s (renderFmt fmt ^ str) in be s (k + String.size str) rest end
+              | TEXT str => let val s = outs s (renderFmt ansi fmt ^ str) in be s (k + String.size str) rest end
               | NEWLINE => let val s = nlspace outs s i in be s i rest end
               | BREAK (sp, off) =>
                 (case mode of
@@ -149,7 +153,7 @@ struct
     let
       fun outs () s = TextIO.output(outstream, s)
     in
-      best w outs () doc;
+      best w false outs () doc;
       outs () "\n";
       TextIO.flushOut outstream
     end
@@ -162,15 +166,15 @@ struct
       TextIO.closeOut dev
     end
 
-  fun toString w doc =
+  fun toString w ansi doc =
     let
       fun outs strs s = s :: strs
-      val strs = best w outs [] doc
+      val strs = best w ansi outs [] doc
     in
       String.concat (List.rev ("\n" :: strs))
     end
 
-  val toConsumer = best
+  val toConsumer = fn w => best w false
 end
 
 structure PrettyPrint = PrettyPrint (AnsiColors)

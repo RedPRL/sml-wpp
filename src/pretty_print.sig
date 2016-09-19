@@ -42,7 +42,9 @@ sig
   val real : real -> doc (* an ML real constant *)
   val bool : bool -> doc (* a boolean *)
 
-  val toString : int -> doc -> string
+  (* width, whether to use ansi formatting, doc *)
+  val toString : int -> bool -> doc -> string
+
   val toOutStream : int -> TextIO.outstream -> doc -> unit
   val toFile : int -> string -> doc -> unit
   val toConsumer : int -> ('a -> string -> 'a) -> 'a -> doc -> 'a
