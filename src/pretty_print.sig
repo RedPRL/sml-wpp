@@ -22,6 +22,7 @@ sig
   val group : doc -> doc
   val nest : int -> doc -> doc
   val text : string -> doc
+  val rule : char -> doc
   val ^^ : doc * doc -> doc
 
   (* formatting *)

@@ -30,6 +30,7 @@ struct
    | NEWLINE
    | GROUP of doc
    | FORMAT of (fmt -> fmt) * doc
+   | RULE of char
 
   val op^^ =
     fn (NIL, NIL) => NIL
@@ -43,6 +44,7 @@ struct
   fun break sp off = BREAK (sp, off)
   val line = BREAK (1, 0)
   val newline = NEWLINE
+  val rule = RULE
   fun group x = GROUP x
 
   fun color cl x = FORMAT (fn {color, bold, ul, bl} => {color = cl, bold = bold, ul = ul, bl = bl}, x)
@@ -107,6 +109,7 @@ struct
                  Flat  => fitting rest (left - sp)
                | Break => true)
            | NEWLINE => true
+           | RULE _ => true
            | GROUP x => fitting ((i, mode, fmt, x) :: rest) left
            | FORMAT (f, doc') => fitting ((i, mode, f fmt, doc') :: rest) left
         else
@@ -142,6 +145,12 @@ struct
                       in
                         be s k ((i, mode', fmt, x) :: rest)
                       end)
+              | RULE c =>
+                  let
+                    val str = String.implode (List.tabulate (w - k, fn _ => c))
+                  in
+                    be s k ((i, mode, fmt, TEXT str) :: (i, mode, fmt, NEWLINE) :: rest)
+                  end
               | FORMAT (f, x) =>
                   be s k ((i, mode, f fmt, x) :: rest))
       in
